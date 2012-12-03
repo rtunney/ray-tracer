@@ -48,9 +48,9 @@ class Plane(object):
 		scale_factor = dot(self.normal.direction, (self.point - ray.point))/dot(self.normal.direction, (ray.direction))
 		intersection = ray.get_coords(scale_factor)
 		if intersection[2]<0: 
-			return intersection
+			return intersection, self.normal
 		else: 
-			return False
+			return False, False
 
 	def get_intersections(self, ray):
 		scale_factor = dot(self.normal.direction, (self.point - ray.point))/dot(self.normal.direction, (ray.direction))
@@ -84,9 +84,11 @@ class Sphere(object):
 		test = b**2 -4*a*c
 
 		if test>=0: 
-			scale = (-b - sqrt(test)) / (2.0*a);
-  			return ray.point + scale * (ray.direction);
-		else: return False
+			scale = (-b - sqrt(test)) / (2.0*a)
+			intersection = ray.point + scale * (ray.direction)
+			normal = Ray(self.center, intersection)
+  			return intersection, normal
+		else: return False, False
 
 	def get_intersections(self, ray):
 		intersections = []
@@ -176,10 +178,11 @@ class World(object):
 
 		min_distance = float('inf')
 		nearest_intersection = None
+		normal = None
 		intersected = None
 
 		for shape in self.shapes:
-			current_intersection = shape.get_intersection(ray)
+			current_intersection, current_normal = shape.get_intersection(ray)
 			if isinstance(current_intersection, ndarray):
 				intersections.append(current_intersection)
 				current_distance = linalg.norm(current_intersection-point)
@@ -187,8 +190,9 @@ class World(object):
 					min_distance = current_distance
 					nearest_intersection = current_intersection
 					intersected = shape
+					normal = current_normal
 
-		return min_distance, nearest_intersection, intersected, intersections
+		return nearest_intersection, intersected, normal
 
 	def get_intersections(self, ray):
 		intersections = []
@@ -204,6 +208,12 @@ class World(object):
 				return True
 		return False
 
+	def get_cos_theta(self, point, normal, light):
+		light_ray = Ray(point, light.point)
+		cos_theta = abs(dot(light_ray.direction, normal.direction)
+					/(linalg.norm(light_ray.direction)*linalg.norm(normal.direction)))
+		return cos_theta
+
 	def get_lighting(self, shape, cos_theta, light):
 		red = int(min(int(shape.color[:2], 16), int(light.color[:2], 16))*cos_theta)
 		green = int(min(int(shape.color[2:4], 16), int(light.color[2:4], 16))*cos_theta)
@@ -217,7 +227,7 @@ class World(object):
 			# print point
 			ray = Ray(self.camera.point, point)
 
-			z_index, nearest_intersection, shape, intersections = self.get_nearest_intersection(camera.point, ray)
+			nearest_intersection, shape, normal = self.get_nearest_intersection(camera.point, ray)
 
 			if nearest_intersection==None:
 				pixels.append((1, 1, 1, 255))
@@ -226,7 +236,7 @@ class World(object):
 				illum = array([0, 0, 0, 255])
 				for light in self.lights:
 					if not self.isblocked(nearest_intersection, light):
-						cos_theta = shape.get_cos_theta(nearest_intersection, light, self.camera)
+						cos_theta = self.get_cos_theta(nearest_intersection, normal, light)
 						illum += self.get_lighting(shape, cos_theta, light)
 					#illum += sqrt(1/sqrt(get_dist(point, light.point)))
 				illum += .5*(255-illum)
@@ -241,7 +251,7 @@ class World(object):
 
 		my_image = Image.new(mode, size)
 		my_image.putdata(pixels)
-		my_image.save('practice - colored spheres colored light.png')
+		my_image.save('practice dontbreakplz.png')
 
 
 camera = Camera(100)

@@ -38,10 +38,11 @@ class Ray(object):
 			self.direction = dot(self.get_rot_matrix(cur_dim, cur_theta), self.direction)
 
 class Plane(object):
-	def __init__(self, point, normal):
+	def __init__(self, point, normal, color='FFFFFF'):
 		assert isinstance(normal, Ray), "input normal of type Ray" 
 		self.point = point
 		self.normal = normal
+		self.color = color
 
 	def get_intersection(self, ray):
 		scale_factor = dot(self.normal.direction, (self.point - ray.point))/dot(self.normal.direction, (ray.direction))
@@ -59,7 +60,7 @@ class Plane(object):
 		else: 
 			return []
 
-	def get_lighting(self, point, light, camera):
+	def get_cos_theta(self, point, light, camera):
 		block_point = self.get_intersection(Ray(camera.point, light.point))
 		if block_point and isbetween(block_point, camera.point, light.point): 
 			return 0
@@ -67,13 +68,13 @@ class Plane(object):
 			light_ray = Ray(point, point2=light.point)
 			cos_theta = abs(dot(light_ray.direction, self.normal.direction)
 						/(linalg.norm(light_ray.direction)*linalg.norm(self.normal.direction)))
-			illum = cos_theta
-		return illum
+		return cos_theta
 
 class Sphere(object):
-	def __init__(self, center, radius):
+	def __init__(self, center, radius, color='FFFFFF'):
 		self.center = center
 		self.radius = radius
+		self.color = color
 
 	def get_intersection(self, ray):
 		a = sum((ray.point2-ray.point)**2)
@@ -104,17 +105,17 @@ class Sphere(object):
   			return intersections
 		else: return []
 
-	def get_lighting(self, point, light, camera):
+	def get_cos_theta(self, point, light, camera):
 		light_ray = Ray(point, light.point)
 		normal = Ray(self.center, point)
 		cos_theta = abs(dot(light_ray.direction, normal.direction)
 					/(linalg.norm(light_ray.direction)*linalg.norm(normal.direction)))
-		illum = cos_theta
-		return illum
+		return cos_theta
 
 class Light(object):
-	def __init__(self, point):
+	def __init__(self, point, color='FFFFFF'):
 		self.point = point
+		self.color = color
 
 class Camera(object):
 	def __init__(self, distance):
@@ -203,6 +204,12 @@ class World(object):
 				return True
 		return False
 
+	def get_lighting(self, shape, cos_theta, light):
+		red = int(min(int(shape.color[:2], 16), int(light.color[:2], 16))*cos_theta)
+		green = int(min(int(shape.color[2:4], 16), int(light.color[2:4], 16))*cos_theta)
+		blue = int(min(int(shape.color[4:], 16), int(light.color[4:], 16))*cos_theta)
+		return array([red, green, blue, 0])
+
 	def get_pixels(self):
 		pixels = []
 
@@ -213,18 +220,17 @@ class World(object):
 			z_index, nearest_intersection, shape, intersections = self.get_nearest_intersection(camera.point, ray)
 
 			if nearest_intersection==None:
-				pixels.append((1, 1, 1, 1))
+				pixels.append((1, 1, 1, 255))
 
 			else:
-				illum = 0
+				illum = array([0, 0, 0, 255])
 				for light in self.lights:
 					if not self.isblocked(nearest_intersection, light):
-						illum += shape.get_lighting(nearest_intersection, light, self.camera)
+						cos_theta = shape.get_cos_theta(nearest_intersection, light, self.camera)
+						illum += self.get_lighting(shape, cos_theta, light)
 					#illum += sqrt(1/sqrt(get_dist(point, light.point)))
-				if illum>=1: illum=1
-				illum += .5*(1-illum)
-				illum = int(illum*256)
-				pixels.append((illum, illum, illum, 256))
+				illum += .5*(255-illum)
+				pixels.append(tuple(illum))
 
 		return pixels
 
@@ -235,7 +241,7 @@ class World(object):
 
 		my_image = Image.new(mode, size)
 		my_image.putdata(pixels)
-		my_image.save('practice8.png')
+		my_image.save('practice9.png')
 
 
 camera = Camera(100)

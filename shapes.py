@@ -241,13 +241,15 @@ class World(object):
 
 		my_image = Image.new(mode, size)
 		my_image.putdata(pixels)
-		my_image.save('practice9.png')
+		my_image.save('practice - colored spheres colored light.png')
 
 
 camera = Camera(100)
 screen = Screen(100, 100, (500, 500))
-light = Light(array([100, 100, -100]))
-lights = [light]
+light0 = Light(array([100, 100, -100]))
+light1 = Light(array([100, 100, -100]), color='12ECA9')
+light2 = Light(array([-100, 100, -100]), color='FCF76C')
+lights = [light1, light2]
 
 p0 = array([0, 0, -100])
 p1 = array([100, 0, -300])
@@ -259,10 +261,15 @@ s2 = Sphere(p1, 20)
 s3 = Sphere(p2, 20)
 s4 = Sphere(p3, 20)
 
+s5 = Sphere(p0, 20, color='12ECA9')
+s6 = Sphere(p1, 20, color='FCF76C')
+s7 = Sphere(p2, 20, color='FE3F3F')
+s8 = Sphere(p3, 20, color='3706AC')
+
 normal = Ray(array([0, 0, 0]), array([0, 1, 0]))
 plane = Plane(array([0, -75, 0]), normal)
 
-shapes = [s1, s2, s3, s4, plane]
+shapes = [s5, s6, s7, s8, plane]
 
 w = World(camera, screen, lights, shapes)
 

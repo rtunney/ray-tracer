@@ -1,5 +1,5 @@
 from __future__ import division
-from numpy import ndarray, array, linalg, dot, arange, pi, sin, cos, tan, sqrt
+from numpy import ndarray, array, linalg, dot, arange, pi, sin, cos, tan, sqrt, inf, column_stack, newaxis
 from PIL import Image
 
 def isbetween(point, bound1, bound2):
@@ -28,14 +28,12 @@ class Ray(object):
 		else: return [[cos(theta), sin(theta), 0], [-sin(theta), cos(theta), 0], [0, 0, 1]]
 
 	def rotate(self, dim, theta):
-		'''input: dim 'x', 'y', 'z' or tuple of dims,
-		theta in rads or tuple of thetas
+		'''input: list of dims 'x', 'y', and/or 'z',
+		list of thetas in rads
 		completes rotations in order entered'''
-		theta = tuple(theta); dim = tuple(dim);
-		for cur_theta, cur_dim in zip(theta, dim):
-			assert isinstance(cur_theta, int) or isinstance(cur_theta, float), "Theta must be a number"
-			assert cur_dim in 'xyz', "Dimension must be x, y, or z"
+		for cur_dim, cur_theta in zip(dim, theta):
 			self.direction = dot(self.get_rot_matrix(cur_dim, cur_theta), self.direction)
+			self.point2 = self.point + self.direction
 
 class Plane(object):
 	def __init__(self, point, normal, color='FFFFFF'):
@@ -60,15 +58,15 @@ class Plane(object):
 		else: 
 			return []
 
-	def get_cos_theta(self, point, light, camera):
-		block_point = self.get_intersection(Ray(camera.point, light.point))
-		if block_point and isbetween(block_point, camera.point, light.point): 
-			return 0
-		else:
-			light_ray = Ray(point, point2=light.point)
-			cos_theta = abs(dot(light_ray.direction, self.normal.direction)
-						/(linalg.norm(light_ray.direction)*linalg.norm(self.normal.direction)))
-		return cos_theta
+	# def get_cos_theta(self, point, light, camera):
+	# 	block_point = self.get_intersection(Ray(camera.point, light.point))
+	# 	if block_point and isbetween(block_point, camera.point, light.point): 
+	# 		return 0
+	# 	else:
+	# 		light_ray = Ray(point, point2=light.point)
+	# 		cos_theta = abs(dot(light_ray.direction, self.normal.direction)
+	# 					/(linalg.norm(light_ray.direction)*linalg.norm(self.normal.direction)))
+	# 	return cos_theta
 
 class Sphere(object):
 	def __init__(self, center, radius, color='FFFFFF'):
@@ -107,12 +105,79 @@ class Sphere(object):
   			return intersections
 		else: return []
 
-	def get_cos_theta(self, point, light, camera):
-		light_ray = Ray(point, light.point)
-		normal = Ray(self.center, point)
-		cos_theta = abs(dot(light_ray.direction, normal.direction)
-					/(linalg.norm(light_ray.direction)*linalg.norm(normal.direction)))
-		return cos_theta
+	# def get_cos_theta(self, point, light, camera):
+	# 	light_ray = Ray(point, light.point)
+	# 	normal = Ray(self.center, point)
+	# 	cos_theta = abs(dot(light_ray.direction, normal.direction)
+	# 				/(linalg.norm(light_ray.direction)*linalg.norm(normal.direction)))
+	# 	return cos_theta
+
+class Block(object):
+	def __init__(self, point, width, height, depth, color='FFFFFF'):
+		self.point = point
+		self.rays = [Ray(self.point, self.point + array([width, 0, 0])), 
+					Ray(self.point, self.point + array([0, height, 0])), 
+					Ray(self.point, self.point + array([0, 0, -depth]))]
+		self.planes = self.get_planes()
+		self.color = color
+
+	def get_planes(self):
+		planes = []
+		for ray in self.rays:
+			planes.append(Plane(self.point, ray))
+			planes.append(Plane(self.point + ray.direction, ray))
+		return planes
+
+	def rotate(self, dim, theta):
+		'''input: list of dims 'x', 'y', and/or 'z',
+		list of thetas in rads
+		completes rotations in order entered'''
+		for ray in self.rays:
+			ray.rotate(dim, theta)
+		self.planes = self.get_planes()
+
+	def get_coeffs(self, point):
+		'''returns an array of coefficients for self.rays to 
+		sum to the given point'''
+		m = column_stack((self.rays[0].direction[:,newaxis], self.rays[1].direction[:,newaxis], 
+			self.rays[2].direction[:,newaxis]))
+		return linalg.solve(m, point)
+
+	def in_face(self, point, plane, plane_index):
+		norm_index = plane_index//2
+		coeffs = self.get_coeffs(point-plane.point)
+		for i in xrange(3):
+			# if i==norm_index:
+			# 	if abs(coeffs[i])>.01:
+			# 		print "uh oh... intersection is not in plane..."
+			if i!=norm_index:
+				if not 0<=coeffs[i]<=1:
+					return False
+		return True
+
+	def get_intersection(self, ray):
+		nearest_intersection = array([0, 0, -inf])
+		normal = None
+		for pl_index, plane in enumerate(self.planes): 
+			current_intersection, current_normal = plane.get_intersection(ray)
+			if not self.in_face(current_intersection, plane, pl_index):
+				current_intersection = False; current_normal = False
+			if (isinstance(current_intersection, ndarray) and current_intersection[2]>nearest_intersection[2]):
+				nearest_intersection = current_intersection
+				normal = plane.normal
+		if normal is not None: 
+			return nearest_intersection, normal
+		else: return False, False
+
+	def get_intersections(self, ray):
+		intersections = []
+		for pl_index, plane in enumerate(self.planes): 
+			current_intersection, current_normal = plane.get_intersection(ray)
+			if not self.in_face(current_intersection, plane, pl_index):
+				current_intersection = False; current_normal = False
+			if isinstance(current_intersection, ndarray):
+				intersections.append(current_intersection)
+		return intersections
 
 class Light(object):
 	def __init__(self, point, color='FFFFFF'):
@@ -220,6 +285,12 @@ class World(object):
 		blue = int(min(int(shape.color[4:], 16), int(light.color[4:], 16))*cos_theta)
 		return array([red, green, blue, 0])
 
+	def get_ambient_light(self, cur_illum, shape):
+		red = int(shape.color[:2], 16)
+		green = int(shape.color[2:4], 16)
+		blue = int(shape.color[4:], 16)
+		return .5*(255-array([red, green, blue]))
+
 	def get_pixels(self):
 		pixels = []
 
@@ -251,7 +322,7 @@ class World(object):
 
 		my_image = Image.new(mode, size)
 		my_image.putdata(pixels)
-		my_image.save('practice dontbreakplz.png')
+		my_image.save('block.png')
 
 
 camera = Camera(100)
@@ -259,7 +330,8 @@ screen = Screen(100, 100, (500, 500))
 light0 = Light(array([100, 100, -100]))
 light1 = Light(array([100, 100, -100]), color='12ECA9')
 light2 = Light(array([-100, 100, -100]), color='FCF76C')
-lights = [light1, light2]
+lights0 = [light0]
+lights12 = [light1, light2]
 
 p0 = array([0, 0, -100])
 p1 = array([100, 0, -300])
@@ -276,11 +348,17 @@ s6 = Sphere(p1, 20, color='FCF76C')
 s7 = Sphere(p2, 20, color='FE3F3F')
 s8 = Sphere(p3, 20, color='3706AC')
 
+r = Ray(array([1, 1, 1]), array([6, 1, 1]))
+
 normal = Ray(array([0, 0, 0]), array([0, 1, 0]))
 plane = Plane(array([0, -75, 0]), normal)
 
-shapes = [s5, s6, s7, s8, plane]
+b = Block(array([0, 0, -100]), 50, 20, 30, color='3706AC')
+b.rotate(['x', 'y'], [pi/4, -pi/6])
 
-w = World(camera, screen, lights, shapes)
+shapes0 = [s5, s6, s7, s8, plane]
+shapes1 = [b, plane]
+
+w = World(camera, screen, lights0, shapes1)
 
 w.draw()

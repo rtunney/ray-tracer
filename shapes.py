@@ -1,5 +1,5 @@
 from __future__ import division
-from numpy import ndarray, array, linalg, dot, arange, pi, sin, cos, tan, sqrt, inf, column_stack, newaxis
+from numpy import ndarray, array, linalg, dot, arange, pi, sin, cos, tan, sqrt, inf, column_stack, newaxis, minimum, append, where
 from PIL import Image
 
 def isbetween(point, bound1, bound2):
@@ -12,6 +12,14 @@ def isbetween(point, bound1, bound2):
 
 def get_dist(point1, point2):
 	return linalg.norm(point2-point1)
+
+class Shape(object):
+
+	def get_rgb(self):
+			red = int(self.color[:2], 16)
+			green = int(self.color[2:4], 16)
+			blue = int(self.color[4:], 16)
+			return array([red, green, blue, 0])
 
 class Ray(object):
 	def __init__ (self, point, point2):
@@ -35,12 +43,13 @@ class Ray(object):
 			self.direction = dot(self.get_rot_matrix(cur_dim, cur_theta), self.direction)
 			self.point2 = self.point + self.direction
 
-class Plane(object):
+class Plane(Shape):
 	def __init__(self, point, normal, color='FFFFFF'):
 		assert isinstance(normal, Ray), "input normal of type Ray" 
 		self.point = point
 		self.normal = normal
 		self.color = color
+		self.rgb = self.get_rgb()
 
 	def get_intersection(self, ray):
 		scale_factor = dot(self.normal.direction, (self.point - ray.point))/dot(self.normal.direction, (ray.direction))
@@ -68,11 +77,12 @@ class Plane(object):
 	# 					/(linalg.norm(light_ray.direction)*linalg.norm(self.normal.direction)))
 	# 	return cos_theta
 
-class Sphere(object):
+class Sphere(Shape):
 	def __init__(self, center, radius, color='FFFFFF'):
 		self.center = center
 		self.radius = radius
 		self.color = color
+		self.rgb = self.get_rgb()
 
 	def get_intersection(self, ray):
 		a = sum((ray.point2-ray.point)**2)
@@ -112,7 +122,7 @@ class Sphere(object):
 	# 				/(linalg.norm(light_ray.direction)*linalg.norm(normal.direction)))
 	# 	return cos_theta
 
-class Block(object):
+class Block(Shape):
 	def __init__(self, point, width, height, depth, color='FFFFFF'):
 		self.point = point
 		self.rays = [Ray(self.point, self.point + array([width, 0, 0])), 
@@ -120,6 +130,7 @@ class Block(object):
 					Ray(self.point, self.point + array([0, 0, -depth]))]
 		self.planes = self.get_planes()
 		self.color = color
+		self.rgb = self.get_rgb()
 
 	def get_planes(self):
 		planes = []
@@ -179,10 +190,11 @@ class Block(object):
 				intersections.append(current_intersection)
 		return intersections
 
-class Light(object):
+class Light(Shape):
 	def __init__(self, point, color='FFFFFF'):
 		self.point = point
 		self.color = color
+		self.rgb = self.get_rgb()
 
 class Camera(object):
 	def __init__(self, distance):
@@ -279,17 +291,35 @@ class World(object):
 					/(linalg.norm(light_ray.direction)*linalg.norm(normal.direction)))
 		return cos_theta
 
-	def get_lighting(self, shape, cos_theta, light):
-		red = int(min(int(shape.color[:2], 16), int(light.color[:2], 16))*cos_theta)
-		green = int(min(int(shape.color[2:4], 16), int(light.color[2:4], 16))*cos_theta)
-		blue = int(min(int(shape.color[4:], 16), int(light.color[4:], 16))*cos_theta)
+	def get_rgb(self, hexcolor):
+		red = int(hexcolor[:2], 16)
+		green = int(hexcolor[2:4], 16)
+		blue = int(hexcolor[4:], 16)
 		return array([red, green, blue, 0])
 
-	def get_ambient_light(self, cur_illum, shape):
-		red = int(shape.color[:2], 16)
-		green = int(shape.color[2:4], 16)
-		blue = int(shape.color[4:], 16)
-		return .5*(255-array([red, green, blue]))
+	def get_lighting(self, shape, cos_theta, light):
+		shape_colors = self.get_rgb(shape.color)
+		light_colors = self.get_rgb(light.color)
+		lighting = minimum(shape.rgb, light.rgb)*cos_theta
+		return lighting.astype(int)
+
+	def get_ambient_light(self, illum, shape):
+		light_deficit = shape.rgb[:3]-illum[:3]
+		return append(.2*light_deficit, 0).astype(int)
+		# max_color = max(illum[:3])
+		# al_coef = .2
+		# if max_color == 0: 
+		# 	return (al_coef*array([255, 255, 255, 0])).astype(int)
+		# else: 
+		# 	ambient_light = (al_coef*(255-max_color))*(illum[:3]/max_color)
+		# 	#print illum, max_color, ambient_light
+		# 	return append(ambient_light, 0).astype(int)
+		
+		# red = int(shape.color[:2], 16)
+		# green = int(shape.color[2:4], 16)
+		# blue = int(shape.color[4:], 16)
+		# array([red, green, blue, 255]).max()/255
+		# return (255-array([red, green, blue, 255]))//2
 
 	def get_pixels(self):
 		pixels = []
@@ -309,10 +339,15 @@ class World(object):
 					if not self.isblocked(nearest_intersection, light):
 						cos_theta = self.get_cos_theta(nearest_intersection, normal, light)
 						illum += self.get_lighting(shape, cos_theta, light)
-					#illum += sqrt(1/sqrt(get_dist(point, light.point)))
-				illum += .5*(255-illum)
+				illum = illum + self.get_ambient_light(illum, shape)
+				#illum += .5*(255-illum)
 				pixels.append(tuple(illum))
 
+		# for index, pixel in enumerate(pixels):
+		# 	for number in pixel:
+		# 		if 
+		#print '---------------------------------------------'
+		#print pixels
 		return pixels
 
 	def draw(self):
@@ -322,12 +357,12 @@ class World(object):
 
 		my_image = Image.new(mode, size)
 		my_image.putdata(pixels)
-		my_image.save('block.png')
+		my_image.save('test-images/ambient light test.png')
 
 
 camera = Camera(100)
 screen = Screen(100, 100, (500, 500))
-light0 = Light(array([100, 100, -100]))
+light0 = Light(array([100, 100, -50]))
 light1 = Light(array([100, 100, -100]), color='12ECA9')
 light2 = Light(array([-100, 100, -100]), color='FCF76C')
 lights0 = [light0]
@@ -353,12 +388,14 @@ r = Ray(array([1, 1, 1]), array([6, 1, 1]))
 normal = Ray(array([0, 0, 0]), array([0, 1, 0]))
 plane = Plane(array([0, -75, 0]), normal)
 
-b = Block(array([0, 0, -100]), 50, 20, 30, color='3706AC')
-b.rotate(['x', 'y'], [pi/4, -pi/6])
+b = Block(array([0, 50, -150]), 50, 20, 30, color='3706AC')
+b.rotate(['x', 'y'], [pi/3, -pi/6])
 
 shapes0 = [s5, s6, s7, s8, plane]
 shapes1 = [b, plane]
 
-w = World(camera, screen, lights0, shapes1)
+colored_spheres = World(camera, screen, lights0, shapes0)
+block_test = World(camera, screen, lights0, shapes1)
 
-w.draw()
+colored_spheres.draw()
+

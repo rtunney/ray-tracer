@@ -357,7 +357,7 @@ class World(object):
 
 		my_image = Image.new(mode, size)
 		my_image.putdata(pixels)
-		my_image.save('test-images/ambient light test.png')
+		my_image.save('test-images/spheres-and-block.png')
 
 
 camera = Camera(100)
@@ -388,14 +388,16 @@ r = Ray(array([1, 1, 1]), array([6, 1, 1]))
 normal = Ray(array([0, 0, 0]), array([0, 1, 0]))
 plane = Plane(array([0, -75, 0]), normal)
 
-b = Block(array([0, 50, -150]), 50, 20, 30, color='3706AC')
+b = Block(array([-50, 50, -150]), 50, 20, 30, color='3706AC')
 b.rotate(['x', 'y'], [pi/3, -pi/6])
 
 shapes0 = [s5, s6, s7, s8, plane]
 shapes1 = [b, plane]
+shapes2 = [s5, s6, s7, s8, b, plane]
 
 colored_spheres = World(camera, screen, lights0, shapes0)
 block_test = World(camera, screen, lights0, shapes1)
+blocks_and_spheres = World(camera, screen, lights0, shapes2)
 
-colored_spheres.draw()
+blocks_and_spheres.draw()
 

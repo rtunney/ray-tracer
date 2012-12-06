@@ -237,7 +237,14 @@ class World(object):
 		self.camera = camera
 		self.screen = screen
 		self.lights = lights
+		self.sum_lights = self.get_sum_lights()
 		self.shapes = shapes
+
+	def get_sum_lights(self):
+		sum_lights = array([0, 0, 0, 255])
+		for light in self.lights: 
+			sum_lights = sum_lights + self.get_rgb(light.color)
+		return minimum(sum_lights, array([255, 255, 255, 255]))
 
 	def set_screen(self, screen):
 		self.screen = screen
@@ -324,8 +331,11 @@ class World(object):
 		return lighting.astype(int)
 
 	def get_ambient_light(self, illum, shape):
-		light_deficit = shape.rgb[:3]-illum[:3]
-		return append(.2*light_deficit, 0).astype(int)
+		light_deficit = self.sum_lights[:3]-illum[:3]
+		min_deficit = min(light_deficit)
+		benchmark_color = where(light_deficit==min_deficit)
+		bump_percent = .2*min_deficit/255
+		return append(bump_percent*minimum(self.sum_lights[:3], shape.rgb[:3]), 0).astype(int)
 		# max_color = max(illum[:3])
 		# al_coef = .2
 		# if max_color == 0: 
@@ -373,15 +383,15 @@ class World(object):
 
 		my_image = Image.new(mode, size)
 		my_image.putdata(pixels)
-		my_image.save('test-images/betsy_test.png')
+		my_image.save('test-images/block.png')
 
 
 camera = Camera(100)
 screen = Screen(100, 100, (500, 500))
 
 light0 = Light(array([100, 100, -100]))
-light1 = Light(array([100, 100, -100]), color='12ECA9')
-light2 = Light(array([-100, 100, -100]), color='FCF76C')
+light1 = Light(array([100, 100, -75]), color='12ECA9')
+light2 = Light(array([-100, 100, -75]), color='FCF76C')
 light3 = Light(array([0, 100, -100]))
 lights0 = [light0]
 lights12 = [light1, light2]
@@ -423,11 +433,12 @@ shapes2 = [s5, s6, s7, s8, b0, plane]
 shapes3 = [b1, b2, b3, s6, s7, s8, plane]
 
 colored_spheres = World(camera, screen, lights0, shapes0)
+colored_spheres_and_light = World(camera, screen, lights12, shapes0)
 emmi_world = World(camera, screen, lights3, shapes0)
 block_test = World(camera, screen, lights0, shapes1)
 blocks_and_spheres = World(camera, screen, lights0, shapes2)
 block_stack = World(camera, screen, lights0, shapes3)
 shadow_world = World(camera, screen, lights3, [b4, plane])
 
-colored_spheres.draw()
+block_test.draw()
 

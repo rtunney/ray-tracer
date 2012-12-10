@@ -360,17 +360,18 @@ class World(object):
         return pixels
 
     #draws image from list of RGBA tuples
-    def draw(self):
+    def draw(self, filename):
         mode = 'RGBA'
         size = self.screen.res
         pixels = self.get_pixels()
 
         my_image = Image.new(mode, size)
         my_image.putdata(pixels)
-        my_image.save('test-images/psychadelic-spheres.png')
+        my_image.save('test-images/' + filename)
 
 camera = Camera(100)
 screen = Screen(100, 100, (500, 500))
+screen2 = Screen(100, 100, (1500, 1500))
 
 light0 = Light(array([100, 100, -50]))
 light1 = Light(array([100, 100, -60]), color='12ECA9')
@@ -420,8 +421,8 @@ colored_spheres_and_light = World(camera, screen, lights12, shapes0)
 emmi_world = World(camera, screen, lights3, shapes0)
 block_test = World(camera, screen, lights0, shapes1)
 blocks_and_spheres = World(camera, screen, lights0, shapes2)
-block_stack = World(camera, screen, lights0, shapes3)
+block_stack = World(camera, screen2, lights0, shapes3)
 shadow_world = World(camera, screen, lights3, [b4, plane])
 
-colored_spheres_and_light.draw()
+block_stack.draw('block_stack.png')
 

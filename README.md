@@ -7,10 +7,13 @@ This repo contains shapes.py, a basic ray tracing algorithm, along with several 
 World Class
 ======================
 
-•To generate an image, you must first create a world object  \n
-•A world can be thought of as a three dimensional grid with shapes, lights, a camera, and a screen \n
-•Points on this grid are represented as numpy arrays of length 3 \n
-•To generate an image, call worldname.draw(filename). Filename is a string including a file extension that python image library supports for rgba inputs (.png is a good choice) \n
+•To generate an image, you must first create a world object
+
+•A world can be thought of as a three dimensional grid with shapes, lights, a camera, and a screen
+
+•Points on this grid are represented as numpy arrays of length 3
+
+•To generate an image, call worldname.draw(filename). Filename is a string including a file extension that python image library supports for rgba inputs (.png is a good choice)
 
 ===============================
 Cameras, Screens and Lights
@@ -30,15 +33,18 @@ Shapes
 
 •Currently worlds can contain planes, spheres, and blocks of arbitrary dimensions. 
 
+
 •Class Ray supports the implementation of these shapes. 
 
 •Rays are defined by two points. The first point is fixed.
+
 
 •Planes are defined by a fixed point and a normal ray
 
 •Spheres are defined by a central point and a radius
 
 •Blocks are defined by a fixed 'anchor point' and three rays 
+
 
 •Planes, spheres and blocks can have colors input as six character RGB hex values (e.g. 'A176C2')
 
@@ -63,6 +69,7 @@ The Algorithm
 •world.get_pixels returns lighting for all points as a list of RGBA tuples
 
 •world.draw generates the image using the list of pixels and python image library
+
 
 •NB: The lighting scheme accounts for RGB values on an individual basis. Illumination reflects the minimum of the elementwise RGB values of the shape and the light, scaled down by the angle of incidence. 
 

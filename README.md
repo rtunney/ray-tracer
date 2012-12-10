@@ -1,6 +1,8 @@
 Ray-Tracer
 ==========
 
+<img src='http://imgur.com/4cEVM.png' title='psychadelic spheres' width='500px' height='500px' />
+
 This repo contains shapes.py, a basic ray tracing algorithm, along with several example images charting the development of the algorithm in test-images
 
 ======================

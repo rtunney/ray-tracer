@@ -7,13 +7,10 @@ This repo contains shapes.py, a basic ray tracing algorithm, along with several 
 World Class
 ======================
 
-•To generate an image, you must first create a world object
-
-•A world can be thought of as a three dimensional grid with shapes, lights, a camera, and a screen
-
-•Points on this grid are represented as numpy arrays of length 3
-
-•To generate an image, call worldname.draw(filename). Filename is a string including a file extension that python image library supports for rgba inputs (.png is a good choice)
+•To generate an image, you must first create a world object  \n
+•A world can be thought of as a three dimensional grid with shapes, lights, a camera, and a screen \n
+•Points on this grid are represented as numpy arrays of length 3 \n
+•To generate an image, call worldname.draw(filename). Filename is a string including a file extension that python image library supports for rgba inputs (.png is a good choice) \n
 
 ===============================
 Cameras, Screens and Lights
